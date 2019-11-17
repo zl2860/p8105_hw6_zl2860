@@ -88,3 +88,98 @@ cv_df %>%
 
 ```
 
+# Problem 2
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+## Create a function for resampling data with replacement
+
+```{r}
+boot_sample = 
+  function(df){
+  sample_frac(df, replace = T)
+  }
+
+```
+
+## Bootstrap
+
+```{r}
+#resample 5000 times
+bootstrap_df = 
+  tibble(
+    sample_id = 1 : 5000,
+    sample = rerun(5000,boot_sample(weather_df))
+  )
+
+# organize results
+estimates =
+  bootstrap_df %>%
+  mutate(model = map(sample, ~lm(tmax ~ tmin, data = .x)),
+         result_r = map(model, broom::glance),
+         result_beta = map(model, broom::tidy)) %>%
+  select(sample_id,result_r, result_beta) %>%
+  unnest() %>%
+  mutate(term = recode(term, 
+                       "(Intercept)" = "beta_0",
+                       "tmin" = "beta_1")) %>%
+  janitor::clean_names() %>%
+  select(sample_id, r_squared, adj_r_squared,term, estimate) %>%
+  pivot_wider( names_from = term,
+               values_from = estimate) %>%
+  mutate(log_beta = log(beta_1 * beta_0))
+```
+
+## Plot the distributions 
+
+```{r}
+# distribution for beta
+plt_beta =
+  estimates %>%
+  ggplot(aes( x = r_squared)) +
+  geom_histogram(fill = "blue", alpha = .4) +
+  geom_density() +
+  theme_bw() +
+  labs(title = "Distribution for log(β̂0β̂1)",
+       x = "log(β̂0β̂1",
+       y = " Count") +
+  theme(plot.title = element_text(hjust = .5 ))
+
+# distribution for r2
+plt_rsq =
+  estimates %>%
+  ggplot(aes( x = log_beta)) +
+  geom_histogram(fill = "red", alpha = .4) +
+  theme_bw() +
+  geom_density() +
+  labs(title = "Distribution for r̂2",
+       x = "r̂2",
+       y = "Count") +
+  theme(plot.title = element_text(hjust = .5 ))
+
+plt_rsq + plt_beta
+
+  
+
+  
+  
+```
+
+## 95% CI
+```{r}
+quantile(pull(estimates,log_beta), c(.25, .975))
+```
+
+
