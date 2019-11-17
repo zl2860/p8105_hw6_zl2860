@@ -58,7 +58,7 @@ summary(fit_main)
 summary(fit_inter)
 ```
 
-```{r}
+```{r, warning=FALSE}
 cv_df = 
   crossv_mc(birthweight,1000) %>%
   mutate(train = map(train, as_tibble),
@@ -90,7 +90,7 @@ cv_df %>%
 
 # Problem 2
 
-```{r}
+```{r, message=FALSE}
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -116,7 +116,7 @@ boot_sample =
 
 ## Bootstrap
 
-```{r}
+```{r, warning=FALSE}
 #resample 5000 times
 bootstrap_df = 
   tibble(
@@ -144,7 +144,7 @@ estimates =
 
 ## Plot the distributions 
 
-```{r}
+```{r,message=FALSE, fig.width=8}
 # distribution for beta
 plt_beta =
   estimates %>%
@@ -153,7 +153,7 @@ plt_beta =
   geom_density() +
   theme_bw() +
   labs(title = "Distribution for log(β̂0β̂1)",
-       x = "log(β̂0β̂1",
+       x = "log(β̂0β̂1)",
        y = " Count") +
   theme(plot.title = element_text(hjust = .5 ))
 
@@ -167,15 +167,12 @@ plt_rsq =
   labs(title = "Distribution for r̂2",
        x = "r̂2",
        y = "Count") +
-  theme(plot.title = element_text(hjust = .5 ))
+  theme(plot.title = element_text(hjust = .5 ))  
 
 plt_rsq + plt_beta
-
-  
-
-  
-  
 ```
+
+
 
 ## 95% CI
 ```{r}
