@@ -13,9 +13,11 @@ library(purrr)
 library(patchwork)
 ```
 
-# Load data
-```{r}
-set.seed(886)
+# Probelm 1
+## Load data and check data
+
+```{r, message=FALSE}
+set.seed(886) # reproducible
 birthweight = read_csv('./data/birthweight.csv')
 skimr::skim(birthweight)
 birthweight =
@@ -26,16 +28,45 @@ birthweight =
          mrace = factor(mrace)
          )
 ```
+The dataset has 4342 observations with 20 variables.
+The brief summary above shows that there is no missing value in all variables. For regression analysis, we transform `babysex`, `frace`, `malform`, `mfrace` to factors.
+
+## Modeling
+
+The following modeling process is based on an automatic approach (stepwise). 
+
+The process of stepwise regression is:
+
+1. Suppose X1 is the first variable added
+
+2. The next step is to fit all regressions with two X variables, X1 being one of them
+
+3. For each regression a t-statistics of the new X is obtained 
+
+4. The new X variable with the largest t-stats (smallest p-value) is the next candidate
+
+5. If t-stats > some predefined level, the second X is then added
+
+6. If not, the program terminates
+
+7. Suppose x2 was added second; the procedure now examines whether any of the other X variables already in the model should be dropped
+
+8. The X value with the smallest t-stats (highest p-value) is dropped
+
+9. The process above repeats until all the variables have been considered by the computer
 
 ```{r}
 # select features
 step(lm(bwt ~ ., data = birthweight), direction = "both")
 
+# build models with selected features
 fit_bw_selected =
   lm(bwt ~ babysex + bhead + blength +delwt +fincome
      + gaweeks + mheight + mrace + parity +
        ppwt + smoken, data = birthweight)
-summary(fit_bw_selected)
+summary(fit_bw_selected) %>%
+  broom::tidy() %>%
+  knitr::kable()
 
 birthweight %>%
   add_predictions(fit_bw_selected) %>%
@@ -51,12 +82,24 @@ birthweight %>%
   
 ```
 
+The regression result is shown in the table above. The resulting model includes `babysex, bhead, blength, delwt, fincome, gaweeks, mheight, mrace, parity, ppwt, smoken` as the predictors. The redisual plot indicates that the variance of the residuals are constant while the predicted values are approximately higher than 2000. 
+
+## Build two models
+
+The following are the regression results for the two other models:
+
 ```{r}
-fit_main = lm(bwt ~ gaweeks ,data = birthweight)
+fit_main = lm(bwt ~ blength + gaweeks ,data = birthweight)
 fit_inter = lm(bwt ~ bhead * blength * babysex ,data = birthweight)
-summary(fit_main)
-summary(fit_inter)
+summary(fit_main) %>%
+  broom::tidy()
+summary(fit_inter) %>%
+  broom::tidy()
 ```
+
+
+
+## Making comparisons in terms of the CV prediction error
 
 ```{r, warning=FALSE}
 cv_df = 
@@ -88,7 +131,11 @@ cv_df %>%
 
 ```
 
+The plot above shows the distribution of the RMSE values for each candidate model. By using the corss validation, we see that there is difference in the prediction error (RMSE) among the three different models. The model that only considers the main effects has the highest average prediction error than the others. The model built by stepwise approach (selected model) has the lowest average RMSE. Therefore, based on the criterion of RMSE, we conclude that the model that includes `babysex, bhead, blength, delwt, fincome, gaweeks, mheight, mrace, parity, ppwt, smoken` is the best for prediction among the three models.
+
 # Problem 2
+
+## Load data
 
 ```{r, message=FALSE}
 weather_df = 
@@ -148,9 +195,9 @@ estimates =
 # distribution for beta
 plt_beta =
   estimates %>%
-  ggplot(aes( x = r_squared)) +
+  ggplot(aes( x = r_squared, y =..density..)) +
   geom_histogram(fill = "blue", alpha = .4) +
-  geom_density() +
+  geom_density(aes( x = r_squared, y = ..density..)) +
   theme_bw() +
   labs(title = "Distribution for log(β̂0β̂1)",
        x = "log(β̂0β̂1)",
@@ -160,10 +207,10 @@ plt_beta =
 # distribution for r2
 plt_rsq =
   estimates %>%
-  ggplot(aes( x = log_beta)) +
+  ggplot(aes( x = log_beta, y = ..density..)) +
   geom_histogram(fill = "red", alpha = .4) +
   theme_bw() +
-  geom_density() +
+  geom_density(aes( x = log_beta, y = ..density..)) +
   labs(title = "Distribution for r̂2",
        x = "r̂2",
        y = "Count") +
@@ -172,11 +219,16 @@ plt_rsq =
 plt_rsq + plt_beta
 ```
 
-
+From the plot above, we see that the distributions of the r_hat-squared and log(beta_0_hat * beta_1_hat) are both nearly normal
 
 ## 95% CI
+
 ```{r}
 quantile(pull(estimates,log_beta), c(.25, .975))
+quantile(pull(estimates,r_squared), c(.25, .975))
 ```
 
+The 95% confidence interval for log(β̂ 0∗β̂ 1) is (1.997271, 2.05847)
+
+The 95% confidence interval for r̂2 is (0.9061750, 0.9278682)
 
